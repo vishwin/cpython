@@ -3616,12 +3616,14 @@ PyDoc_STRVAR(PySSLContext_num_tickets_doc,
 "Control the number of TLSv1.3 session tickets");
 #endif /* TLS1_3_VERSION */
 
+#ifndef LIBRESSL_VERSION_NUMBER
 static PyObject *
 get_security_level(PySSLContext *self, void *c)
 {
     return PyLong_FromLong(SSL_CTX_get_security_level(self->ctx));
 }
 PyDoc_STRVAR(PySSLContext_security_level_doc, "The current security level");
+#endif
 
 static PyObject *
 get_options(PySSLContext *self, void *c)
