@@ -892,9 +892,12 @@ py_evp_fromname(PyObject *module, const char *digestname, PyObject *data_obj,
         goto exit;
     }
 
+#ifdef PY_OPENSSL_HAS_SHAKE
     if ((EVP_MD_flags(digest) & EVP_MD_FLAG_XOF) == EVP_MD_FLAG_XOF) {
         type = get_hashlib_state(module)->EVPXOFtype;
-    } else {
+    } else
+#endif
+    {
         type = get_hashlib_state(module)->EVPtype;
     }
 
