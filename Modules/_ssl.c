@@ -4741,8 +4741,10 @@ static PyGetSetDef context_getsetlist[] = {
                      (setter) set_verify_flags, NULL},
     {"verify_mode", (getter) get_verify_mode,
                     (setter) set_verify_mode, NULL},
+#ifndef LIBRESSL_VERSION_NUMBER
     {"security_level", (getter) get_security_level,
                        NULL, PySSLContext_security_level_doc},
+#endif
     {NULL},            /* sentinel */
 };
 
