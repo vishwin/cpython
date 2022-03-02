@@ -169,7 +169,11 @@ extern const SSL_METHOD *TLSv1_2_method(void);
  * Based on Hynek's excellent blog post (update 2021-02-11)
  * https://hynek.me/articles/hardening-your-web-servers-ssl-ciphers/
  */
-  #define PY_SSL_DEFAULT_CIPHER_STRING "@SECLEVEL=2:ECDH+AESGCM:ECDH+CHACHA20:ECDH+AES:DHE+AES:!aNULL:!eNULL:!aDSS:!SHA1:!AESCCM"
+  #ifdef LIBRESSL_VERSION_NUMBER
+    #define PY_SSL_DEFAULT_CIPHER_STRING "ECDH+AESGCM:ECDH+CHACHA20:ECDH+AES:DHE+AES:!aNULL:!eNULL:!aDSS:!SHA1:!AESCCM"
+  #else
+    #define PY_SSL_DEFAULT_CIPHER_STRING "@SECLEVEL=2:ECDH+AESGCM:ECDH+CHACHA20:ECDH+AES:DHE+AES:!aNULL:!eNULL:!aDSS:!SHA1:!AESCCM"
+  #endif
   #ifndef PY_SSL_MIN_PROTOCOL
     #define PY_SSL_MIN_PROTOCOL TLS1_2_VERSION
   #endif
