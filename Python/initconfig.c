@@ -24,6 +24,9 @@
 #    include <fcntl.h>            // O_BINARY
 #  endif
 #endif
+#ifdef HAVE_UNISTD_H
+#  include <unistd.h>             // geteuid()
+#endif
 
 #ifndef PLATLIBDIR
 #  error "PLATLIBDIR macro must be defined"
@@ -673,6 +676,11 @@ config_init_defaults(PyConfig *config)
     config->optimization_level = 0;
     config->parser_debug= 0;
     config->write_bytecode = 1;
+#ifdef HAVE_UNISTD_H
+    if (geteuid() == 0) {
+        config->write_bytecode = 0;
+    }
+#endif
     config->verbose = 0;
     config->quiet = 0;
     config->user_site_directory = 1;
