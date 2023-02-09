@@ -23,6 +23,10 @@
 #  include <windows.h>  /* STATUS_CONTROL_C_EXIT */
 #endif
 
+#ifdef HAVE_UNISTD_H
+#  include <unistd.h>
+#endif
+
 #ifdef __FreeBSD__
 #  include <fenv.h>
 #endif
@@ -1540,6 +1544,11 @@ cmdline_set_global_config(_PyCmdline *cmdline)
     Py_IsolatedFlag = cmdline->isolated;
     Py_OptimizeFlag = cmdline->optimization_level;
     Py_DontWriteBytecodeFlag = cmdline->dont_write_bytecode;
+#ifdef HAVE_UNISTD_H
+    if (geteuid() == 0) {
+        Py_DontWriteBytecodeFlag++;
+    }
+#endif
     Py_NoUserSiteDirectory = cmdline->no_user_site_directory;
     Py_NoSiteFlag = cmdline->no_site_import;
     Py_UnbufferedStdioFlag = cmdline->use_unbuffered_io;
