@@ -169,11 +169,7 @@ extern const SSL_METHOD *TLSv1_2_method(void);
  * Based on Hynek's excellent blog post (update 2021-02-11)
  * https://hynek.me/articles/hardening-your-web-servers-ssl-ciphers/
  */
-  #ifdef LIBRESSL_VERSION_NUMBER
-    #define PY_SSL_DEFAULT_CIPHER_STRING "ECDH+AESGCM:ECDH+CHACHA20:ECDH+AES:DHE+AES:!aNULL:!eNULL:!aDSS:!SHA1:!AESCCM"
-  #else
-    #define PY_SSL_DEFAULT_CIPHER_STRING "@SECLEVEL=2:ECDH+AESGCM:ECDH+CHACHA20:ECDH+AES:DHE+AES:!aNULL:!eNULL:!aDSS:!SHA1:!AESCCM"
-  #endif
+  #define PY_SSL_DEFAULT_CIPHER_STRING "@SECLEVEL=2:ECDH+AESGCM:ECDH+CHACHA20:ECDH+AES:DHE+AES:!aNULL:!eNULL:!aDSS:!SHA1:!AESCCM"
   #ifndef PY_SSL_MIN_PROTOCOL
     #define PY_SSL_MIN_PROTOCOL TLS1_2_VERSION
   #endif
@@ -3620,14 +3616,12 @@ PyDoc_STRVAR(PySSLContext_num_tickets_doc,
 "Control the number of TLSv1.3 session tickets");
 #endif /* TLS1_3_VERSION */
 
-#ifndef LIBRESSL_VERSION_NUMBER
 static PyObject *
 get_security_level(PySSLContext *self, void *c)
 {
     return PyLong_FromLong(SSL_CTX_get_security_level(self->ctx));
 }
 PyDoc_STRVAR(PySSLContext_security_level_doc, "The current security level");
-#endif
 
 static PyObject *
 get_options(PySSLContext *self, void *c)
@@ -4741,10 +4735,8 @@ static PyGetSetDef context_getsetlist[] = {
                      (setter) set_verify_flags, NULL},
     {"verify_mode", (getter) get_verify_mode,
                     (setter) set_verify_mode, NULL},
-#ifndef LIBRESSL_VERSION_NUMBER
     {"security_level", (getter) get_security_level,
                        NULL, PySSLContext_security_level_doc},
-#endif
     {NULL},            /* sentinel */
 };
 
