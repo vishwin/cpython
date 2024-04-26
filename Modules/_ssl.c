@@ -4552,6 +4552,7 @@ set_sni_callback(PySSLContext *self, PyObject *arg, void *c)
 }
 
 #if OPENSSL_VERSION_NUMBER < 0x30300000L
+#if !defined(LIBRESSL_VERSION_NUMBER)
 static X509_OBJECT *x509_object_dup(const X509_OBJECT *obj)
 {
     int ok;
@@ -4593,6 +4594,128 @@ X509_STORE_get1_objects(X509_STORE *store)
     X509_STORE_unlock(store);
     return ret;
 }
+
+#elif defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x3090000fL
+#include "openssl/safestack.h"
+
+#define X509error(r) ERR_PUT_error(ERR_LIB_X509,(0xfff),(r),__FILE__,__LINE__)
+
+struct x509_object_st {
+    /* one of the above types */
+    int type;
+    union {
+        X509 *x509;
+        X509_CRL *crl;
+    } data;
+} /* X509_OBJECT */;
+
+struct x509_store_st {
+    /* The following is a cache of trusted certs */
+    STACK_OF(X509_OBJECT) *objs;	/* Cache of all objects */
+
+    /* These are external lookup methods */
+    STACK_OF(X509_LOOKUP) *get_cert_methods;
+
+    X509_VERIFY_PARAM *param;
+
+    /* Callbacks for various operations */
+    int (*verify)(X509_STORE_CTX *ctx);	/* called to verify a certificate */
+    int (*verify_cb)(int ok,X509_STORE_CTX *ctx);	/* error callback */
+    int (*get_issuer)(X509 **issuer, X509_STORE_CTX *ctx, X509 *x);	/* get issuers cert from ctx */
+    int (*check_issued)(X509_STORE_CTX *ctx, X509 *x, X509 *issuer); /* check issued */
+    int (*check_revocation)(X509_STORE_CTX *ctx); /* Check revocation status of chain */
+    int (*get_crl)(X509_STORE_CTX *ctx, X509_CRL **crl, X509 *x); /* retrieve CRL */
+    int (*check_crl)(X509_STORE_CTX *ctx, X509_CRL *crl); /* Check CRL validity */
+    int (*cert_crl)(X509_STORE_CTX *ctx, X509_CRL *crl, X509 *x); /* Check certificate against CRL */
+    STACK_OF(X509) * (*lookup_certs)(X509_STORE_CTX *ctx, X509_NAME *nm);
+    STACK_OF(X509_CRL) * (*lookup_crls)(X509_STORE_CTX *ctx, X509_NAME *nm);
+    int (*cleanup)(X509_STORE_CTX *ctx);
+
+    CRYPTO_EX_DATA ex_data;
+    int references;
+} /* X509_STORE */;
+
+static int
+x509_object_cmp(const X509_OBJECT * const *a, const X509_OBJECT * const *b)
+{
+    int ret;
+
+    if ((ret = (*a)->type - (*b)->type) != 0)
+        return ret;
+
+    switch ((*a)->type) {
+    case X509_LU_X509:
+        return X509_subject_name_cmp((*a)->data.x509, (*b)->data.x509);
+    case X509_LU_CRL:
+        return X509_CRL_cmp((*a)->data.crl, (*b)->data.crl);
+    }
+    return 0;
+}
+
+static X509_OBJECT *
+x509_object_dup(const X509_OBJECT *obj)
+{
+    X509_OBJECT *copy;
+
+    if ((copy = X509_OBJECT_new()) == NULL) {
+        X509error(ERR_R_MALLOC_FAILURE);
+        return NULL;
+    }
+
+    copy->type = obj->type;
+    copy->data = obj->data;
+
+    X509_OBJECT_up_ref_count(copy);
+
+    return copy;
+}
+
+static STACK_OF(X509_OBJECT) *
+sk_X509_OBJECT_deep_copy(const STACK_OF(X509_OBJECT) *objs)
+{
+    STACK_OF(X509_OBJECT) *copy = NULL;
+    X509_OBJECT *obj = NULL;
+    int i;
+
+    if ((copy = sk_X509_OBJECT_new(x509_object_cmp)) == NULL) {
+        X509error(ERR_R_MALLOC_FAILURE);
+        goto err;
+    }
+
+    for (i = 0; i < sk_X509_OBJECT_num(objs); i++) {
+        if ((obj = x509_object_dup(sk_X509_OBJECT_value(objs, i))) == NULL)
+            goto err;
+        if (!sk_X509_OBJECT_push(copy, obj))
+            goto err;
+        obj = NULL;
+    }
+
+    return copy;
+
+ err:
+    X509_OBJECT_free(obj);
+    sk_X509_OBJECT_pop_free(copy, X509_OBJECT_free);
+
+    return NULL;
+}
+
+STACK_OF(X509_OBJECT) *
+X509_STORE_get1_objects(X509_STORE *store)
+{
+    STACK_OF(X509_OBJECT) *objs;
+
+    if (store == NULL) {
+        X509error(ERR_R_PASSED_NULL_PARAMETER);
+        return NULL;
+    }
+
+    CRYPTO_r_lock(CRYPTO_LOCK_X509_STORE);
+    objs = sk_X509_OBJECT_deep_copy(store->objs);
+    CRYPTO_r_unlock(CRYPTO_LOCK_X509_STORE);
+
+    return objs;
+}
+#endif
 #endif
 
 PyDoc_STRVAR(PySSLContext_sni_callback_doc,
